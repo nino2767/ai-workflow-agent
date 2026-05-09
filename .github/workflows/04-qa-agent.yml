@@ -28,7 +28,7 @@ jobs:
       - name: Post QA checklist comment
         uses: actions/github-script@v7
         env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           DIFF_CONTENT: ${{ steps.diff.outputs.diff_content }}
         with:
           script: |
@@ -59,7 +59,7 @@ jobs:
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
-                'x-api-key': process.env.ANTHROPIC_API_KEY,
+                'x-api-key': process.env.GEMINI_API_KEY,
                 'anthropic-version': '2023-06-01'
               },
               body: JSON.stringify({
