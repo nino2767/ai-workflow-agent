@@ -1,0 +1,67 @@
+name: 01 Planning Agent
+
+on:
+  issues:
+    types: [opened]
+
+jobs:
+  planning:
+    runs-on: ubuntu-latest
+    if: contains(github.event.issue.labels.*.name, 'feature')
+    permissions:
+      issues: write
+    steps:
+      - name: Analyze issue and post planning comment
+        uses: actions/github-script@v7
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        with:
+          script: |
+            const issue = context.payload.issue;
+
+            const prompt = `You are a product planning assistant. Analyze this GitHub issue and provide a structured planning analysis.
+
+Issue Title: ${issue.title}
+Issue Body: ${issue.body || '(no description)'}
+
+Please provide:
+1. Feature Summary
+2. User Stories
+3. Acceptance Criteria
+4. Technical Considerations
+5. Estimated Complexity (Low / Medium / High)`;
+
+            const response = await fetch('https://api.anthropic.com/v1/messages', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'x-api-key': process.env.ANTHROPIC_API_KEY,
+                'anthropic-version': '2023-06-01'
+              },
+              body: JSON.stringify({
+                model: 'claude-opus-4-5',
+                max_tokens: 1024,
+                messages: [{ role: 'user', content: prompt }]
+              })
+            });
+
+            if (!response.ok) {
+              throw new Error(`Anthropic API error: ${response.status} ${await response.text()}`);
+            }
+
+            const data = await response.json();
+            const analysis = data.content[0].text;
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issue.number,
+              body: `## Planning Agent Analysis\n\n${analysis}`
+            });
+
+            await github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issue.number,
+              labels: ['planning-done', 'needs-design']
+            });
