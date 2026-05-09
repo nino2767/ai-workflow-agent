@@ -18,10 +18,12 @@ jobs:
       - name: Get git diff
         id: diff
         run: |
-          git diff origin/${{ github.base_ref }}...HEAD > diff.txt
-          echo "diff_content<<EOF" >> $GITHUB_OUTPUT
-          head -c 12000 diff.txt >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
+          git diff "origin/${{ github.base_ref }}...HEAD" > diff.txt
+          {
+            echo "diff_content<<EOF"
+            head -c 12000 diff.txt
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Post code review comment
         uses: actions/github-script@v7
@@ -33,23 +35,25 @@ jobs:
             const diff = process.env.DIFF_CONTENT;
             const pr = context.payload.pull_request;
 
-            const prompt = `You are a senior software engineer conducting a code review. Review the following pull request diff and provide constructive, actionable feedback.
-
-PR Title: ${pr.title}
-PR Description: ${pr.body || '(no description)'}
-
-Diff:
-\`\`\`diff
-${diff}
-\`\`\`
-
-Please provide:
-1. Summary of changes
-2. Code quality issues (if any)
-3. Potential bugs or edge cases
-4. Security concerns (if any)
-5. Suggestions for improvement
-6. Overall assessment (Approve / Request Changes / Comment)`;
+            const prompt = [
+              'You are a senior software engineer conducting a code review. Review the following pull request diff and provide constructive, actionable feedback.',
+              '',
+              'PR Title: ' + pr.title,
+              'PR Description: ' + (pr.body || '(no description)'),
+              '',
+              'Diff:',
+              '```diff',
+              diff,
+              '```',
+              '',
+              'Please provide:',
+              '1. Summary of changes',
+              '2. Code quality issues (if any)',
+              '3. Potential bugs or edge cases',
+              '4. Security concerns (if any)',
+              '5. Suggestions for improvement',
+              '6. Overall assessment (Approve / Request Changes / Comment)',
+            ].join('\n');
 
             const response = await fetch('https://api.anthropic.com/v1/messages', {
               method: 'POST',
@@ -66,7 +70,7 @@ Please provide:
             });
 
             if (!response.ok) {
-              throw new Error(`Anthropic API error: ${response.status} ${await response.text()}`);
+              throw new Error('Anthropic API error: ' + response.status + ' ' + (await response.text()));
             }
 
             const data = await response.json();
@@ -76,5 +80,5 @@ Please provide:
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: pr.number,
-              body: `## Dev Agent Code Review\n\n${review}`
+              body: '## Dev Agent Code Review\n\n' + review
             });

@@ -19,17 +19,19 @@ jobs:
           script: |
             const issue = context.payload.issue;
 
-            const prompt = `You are a UX/UI design assistant. Based on this feature issue, provide a detailed design guide.
-
-Issue Title: ${issue.title}
-Issue Body: ${issue.body || '(no description)'}
-
-Please provide:
-1. UI Components needed
-2. User Flow (text-based diagram)
-3. Design Principles to follow
-4. Accessibility considerations
-5. Responsive design notes`;
+            const prompt = [
+              'You are a UX/UI design assistant. Based on this feature issue, provide a detailed design guide.',
+              '',
+              'Issue Title: ' + issue.title,
+              'Issue Body: ' + (issue.body || '(no description)'),
+              '',
+              'Please provide:',
+              '1. UI Components needed',
+              '2. User Flow (text-based diagram)',
+              '3. Design Principles to follow',
+              '4. Accessibility considerations',
+              '5. Responsive design notes',
+            ].join('\n');
 
             const response = await fetch('https://api.anthropic.com/v1/messages', {
               method: 'POST',
@@ -46,7 +48,7 @@ Please provide:
             });
 
             if (!response.ok) {
-              throw new Error(`Anthropic API error: ${response.status} ${await response.text()}`);
+              throw new Error('Anthropic API error: ' + response.status + ' ' + (await response.text()));
             }
 
             const data = await response.json();
@@ -56,7 +58,7 @@ Please provide:
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: issue.number,
-              body: `## Design Agent Guide\n\n${guide}`
+              body: '## Design Agent Guide\n\n' + guide
             });
 
             await github.rest.issues.addLabels({

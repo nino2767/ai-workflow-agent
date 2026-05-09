@@ -18,10 +18,12 @@ jobs:
       - name: Get git diff
         id: diff
         run: |
-          git diff origin/${{ github.base_ref }}...HEAD > diff.txt
-          echo "diff_content<<EOF" >> $GITHUB_OUTPUT
-          head -c 10000 diff.txt >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
+          git diff "origin/${{ github.base_ref }}...HEAD" > diff.txt
+          {
+            echo "diff_content<<EOF"
+            head -c 10000 diff.txt
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Post QA checklist comment
         uses: actions/github-script@v7
@@ -33,23 +35,25 @@ jobs:
             const diff = process.env.DIFF_CONTENT;
             const pr = context.payload.pull_request;
 
-            const prompt = `You are a QA engineer. Based on this pull request, generate a comprehensive QA checklist.
-
-PR Title: ${pr.title}
-PR Description: ${pr.body || '(no description)'}
-
-Diff:
-\`\`\`diff
-${diff}
-\`\`\`
-
-Generate a QA checklist using GitHub checkbox format (- [ ] item) covering:
-1. Functional testing scenarios
-2. Edge cases to test
-3. Regression test areas
-4. UI/UX validation points (if applicable)
-5. Performance considerations
-6. Security testing points (if applicable)`;
+            const prompt = [
+              'You are a QA engineer. Based on this pull request, generate a comprehensive QA checklist.',
+              '',
+              'PR Title: ' + pr.title,
+              'PR Description: ' + (pr.body || '(no description)'),
+              '',
+              'Diff:',
+              '```diff',
+              diff,
+              '```',
+              '',
+              'Generate a QA checklist using GitHub checkbox format (- [ ] item) covering:',
+              '1. Functional testing scenarios',
+              '2. Edge cases to test',
+              '3. Regression test areas',
+              '4. UI/UX validation points (if applicable)',
+              '5. Performance considerations',
+              '6. Security testing points (if applicable)',
+            ].join('\n');
 
             const response = await fetch('https://api.anthropic.com/v1/messages', {
               method: 'POST',
@@ -66,7 +70,7 @@ Generate a QA checklist using GitHub checkbox format (- [ ] item) covering:
             });
 
             if (!response.ok) {
-              throw new Error(`Anthropic API error: ${response.status} ${await response.text()}`);
+              throw new Error('Anthropic API error: ' + response.status + ' ' + (await response.text()));
             }
 
             const data = await response.json();
@@ -76,5 +80,5 @@ Generate a QA checklist using GitHub checkbox format (- [ ] item) covering:
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: pr.number,
-              body: `## QA Agent Checklist\n\n${checklist}`
+              body: '## QA Agent Checklist\n\n' + checklist
             });
