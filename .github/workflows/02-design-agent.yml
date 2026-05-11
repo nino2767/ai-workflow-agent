@@ -16,6 +16,7 @@ jobs:
         env:
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
         with:
+          github-token: ${{ secrets.WORKFLOW_TOKEN }}
           script: |
             const issue = context.payload.issue;
 
